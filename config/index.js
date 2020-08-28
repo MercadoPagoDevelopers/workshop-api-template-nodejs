@@ -1,0 +1,3 @@
+module.exports = {
+  private_key: 'TEST-5581463330771909-120303-55f74510ef4857a64cb0c963a8c12432-119639190'
+};
