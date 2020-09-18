@@ -1,0 +1,118 @@
+<div class="row m-0">
+    <div class="col-lg-6 left-side-product-box pb-3">
+        <img id="product_img" src="{{img}}" class="border p-3">
+    </div>
+    <div class="col-lg-6">
+        <div class="right-side-pro-detail border p-3 m-0">
+            <div class="row">
+                <div class="col-lg-12">
+                    <p id="product_title" class="m-0 p-0">{{title}}</p>
+                </div>
+                <div class="col-lg-12">
+                    <p id="product_price" class="m-0 p-0 price-pro">$ {{price}}</p>
+                    <hr class="p-0 m-0">
+                </div>
+                <div class="col-lg-3">
+                    <br><h6>Cantidad :</h6>
+                    <input id="product_quantity" type="number" class="form-control text-center w-100" value="1">
+                </div>
+                <div class="col-lg-12 mt-3">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <button id="create_button" onclick="createOrder()" class="mp-button mp-button-create">Generar Orden</button>
+                            <button hidden id="cancel_button" onclick="cancelOrder()" class="mp-button mp-button-cancel">Cancelar Orden</button>
+                            <br><br>
+                            <h5 id="order_status"></h5>
+                            <hr>
+                            <img src="{{qr_img}}" class="border p-3" style="width: 80%;">
+                            <br><br>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    var orderData = {
+        title: "{{title}}",
+        unit_price: {{price}},
+        picture_url: "{{img}}"
+    }
+
+    function createOrder() {
+
+        orderData.quantity = document.getElementById('product_quantity').value;
+
+        $.ajax({
+            url: "{{baseurl}}/api/order",
+            type: 'post',
+            contentType: 'application/json',
+            dataType: 'json', 
+            data: JSON.stringify(orderData),
+            success: function(data) {
+                if ( data.external_reference ) {
+                    document.getElementById('create_button').setAttribute('hidden', false);
+                    document.getElementById('cancel_button').removeAttribute('hidden');
+                    startStatusPolling(data.external_reference);
+                }
+            },
+            error: function (data) {
+                console.log('Error:', data);
+            }
+        });
+    }
+
+    function cancelOrder() {
+        $.ajax({
+            url: "{{baseurl}}/api/order",
+            type: 'delete',
+            success: function(data) {
+                document.getElementById('cancel_button').setAttribute('hidden', false);
+                document.getElementById('create_button').removeAttribute('hidden');
+                document.getElementById('order_status').innerHTML = "";
+                stopStatusPolling();
+            },
+            error: function (data) {
+                console.log('Error:', data);
+            }
+        });
+    }
+
+    // Polling function to display any order status update.
+    var pollInterval = undefined;
+
+    function startStatusPolling(externalReferenceId) {
+        pollInterval = setInterval( 
+            function() { 
+                $.ajax({
+                    url: "{{baseurl}}/api/status?external_reference="+externalReferenceId,
+                    dataType: 'json',
+                    type: 'get',
+                    success: function(data) {
+                        if ( data.status ) {
+                            var order_status = data.status == 'unknown' ? 'QR aún no escaneado' : data.status;
+                            document.getElementById('order_status').innerHTML = 'Estado de la orden: '+order_status;
+                            if(data.status === 'closed') {
+                                document.getElementById('cancel_button').setAttribute('hidden', false);
+                                document.getElementById('create_button').removeAttribute('hidden');
+                                clearInterval(pollInterval);
+                            }
+                        }
+                    },
+                    error: function (data) {
+                        console.log('Error:', data);
+                    }
+                });
+            }, 
+            3000
+        );
+    };
+    
+    function stopStatusPolling(){
+        clearInterval(pollInterval);
+    }
+
+</script>
